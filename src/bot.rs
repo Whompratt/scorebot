@@ -33,6 +33,10 @@ async fn new_board(
     // 4. If scoreboard doesn't exist, create scoreboard in scoreboards db
     let guild_id = ctx.guild_id().unwrap().0;
     let guild_name = ctx.guild().unwrap().name;
+    let scoreboard_description = match scoreboard_description {
+        Some(desc) => desc,
+        None => "-".to_string(),
+    };
 
     // Register guild in guilds db if it doesn't exist
     match add_guild(&ctx.data().pool, guild_id, guild_name).await {
@@ -73,27 +77,33 @@ async fn new_board(
 async fn get_boards(ctx: Context<'_>) -> Result<(), Error> {
     let guild_id = ctx.guild_id().unwrap().0;
 
-    let scoreboard: Vec<Scoreboard> = get_boards_from_db(&ctx.data().pool, guild_id).await?;
+    let scoreboards: Vec<Scoreboard> = get_boards_from_db(&ctx.data().pool, guild_id).await?;
 
     poise::send_reply(ctx, |f| {
         f.embed(|e| {
             e.title("Scoreboards")
                 .description("Here are the scoreboards for your server:")
                 .fields(
-                    scoreboard
+                    scoreboards
                         .iter()
                         .map(|scoreboard| {
                             (
                                 scoreboard.scoreboard_name.clone(),
                                 scoreboard.scoreboard_description.clone(),
+                                false,
                             )
                         })
-                        .collect::<Vec<(&String, &String)>>(),
+                        .collect::<Vec<(String, String, bool)>>(),
                 )
         })
     })
     .await?;
 
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command)]
+async fn i_won(_ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 

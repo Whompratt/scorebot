@@ -10,7 +10,7 @@ pub struct Scoreboard {
     pub scoreboard_id: i32,
     pub guild_id: i64,
     pub scoreboard_name: String,
-    pub scoreboard_description: Option<String>,
+    pub scoreboard_description: String,
 }
 
 // This function creates a connection to the postgres database, and then spawns a tokio task to run the connection, returning both the connection as a join_handle and the client
@@ -71,7 +71,7 @@ pub async fn create_tables(pool: &Pool<Postgres>) -> Result<(), sqlx::Error> {
             scoreboard_id SERIAL PRIMARY KEY,
             guild_id BIGINT NOT NULL,
             scoreboard_name VARCHAR(255) NOT NULL, \
-            scoreboard_description VARCHAR(255), \
+            scoreboard_description VARCHAR(4095) NOT NULL, \
             CONSTRAINT fk_guild_id FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) \
         )"
     )
@@ -134,23 +134,15 @@ pub async fn add_scoreboard(
     pool: &Pool<Postgres>,
     guild_id: u64,
     scoreboard_name: String,
-    scoreboard_description: Option<String>,
+    scoreboard_description: String,
 ) -> Result<String, sqlx::Error> {
     let scoreboard_check_query = format!(
         "SELECT * FROM scoreboards WHERE guild_id = {guild_id} AND scoreboard_name = '{scoreboard_name}'", guild_id=guild_id.to_string(), scoreboard_name=scoreboard_name
     );
 
-    let scoreboard_insert_query;
-
-    if let Some(scoreboard_description) = scoreboard_description {
-        scoreboard_insert_query = format!(
-            "INSERT INTO scoreboards (guild_id, scoreboard_name, scoreboard_description) VALUES ({guild_id}, '{scoreboard_name}', '{scoreboard_description}')", guild_id=guild_id.to_string(), scoreboard_name=scoreboard_name, scoreboard_description=scoreboard_description
-        );
-    } else {
-        scoreboard_insert_query = format!(
-            "INSERT INTO scoreboards (guild_id, scoreboard_name) VALUES ({guild_id}, '{scoreboard_name}')", guild_id=guild_id.to_string(), scoreboard_name=scoreboard_name
-        );
-    }
+    let scoreboard_insert_query = format!(
+        "INSERT INTO scoreboards (guild_id, scoreboard_name, scoreboard_description) VALUES ({guild_id}, '{scoreboard_name}', '{scoreboard_description}')", guild_id=guild_id.to_string(), scoreboard_name=scoreboard_name, scoreboard_description=scoreboard_description
+    );
 
     match sqlx::query(&scoreboard_check_query)
         .fetch_optional(pool)
