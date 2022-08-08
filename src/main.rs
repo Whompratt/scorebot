@@ -2,11 +2,12 @@ mod bot;
 mod database;
 
 use crate::bot::start_bot;
-use crate::database::create_tables;
+use crate::database::{create_tables, initalize_db};
+use sqlx::{Pool, Postgres};
 
 use dotenv::dotenv;
 
-use log::debug;
+use log::{debug, error};
 
 #[tokio::main]
 async fn main() {
@@ -14,15 +15,16 @@ async fn main() {
     env_logger::init();
 
     // Create the database thread
-    let (client, _connection) = match database::initalize_db().await {
-        Ok((client, connection)) => (client, connection),
+    let pool: Pool<Postgres> = match initalize_db().await {
+        Ok(pool) => pool,
         Err(err) => {
-            panic!("Error connecting to the database: {:?}", err);
+            error!("Error creating database pool: {:?}", err);
+            return;
         }
     };
 
     // Create the tables if they don't exist
-    match create_tables(&client).await {
+    match create_tables(&pool).await {
         Ok(_) => {
             debug!("Tables created");
         }
@@ -31,5 +33,5 @@ async fn main() {
         }
     };
 
-    start_bot().await;
+    start_bot(pool).await;
 }
